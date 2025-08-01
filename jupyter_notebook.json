@@ -1,0 +1,492 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "id": "31b27b7a-ac88-4575-b1f5-d544dca62225",
+   "metadata": {},
+   "source": [
+    "# Day-Ahead Electricity Price Forecasting System\n",
+    "\n",
+    "This notebook implements an ensemble approach for enhanced day-ahead price forecasting in electricity markets.\n",
+    "\n",
+    "## Features\n",
+    "- Multiple ML and Deep Learning models\n",
+    "- Time series forecasting methods\n",
+    "- Custom ensemble strategies\n",
+    "- Comprehensive evaluation metrics\n",
+    "- Automated model selection"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "4cfa31c8-837b-4deb-b640-7316f572bc34",
+   "metadata": {},
+   "source": [
+    "## Configuration"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "44e8f2bc-b46b-4e3b-9b7d-6257cc6e14d5",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Import the EPF system\n",
+    "from day_ahead_EPF import DayAheadEPF\n",
+    "import pandas as pd\n",
+    "from datetime import datetime, timedelta\n",
+    "\n",
+    "# Configuration parameters\n",
+    "config = {\n",
+    "    # Date & Zone info\n",
+    "    'starting_date': None,  # Format: 'dd/mm/yyyy' or None for current date\n",
+    "    'days_ahead': 1,        # Number of days ahead to forecast\n",
+    "    'zones': ['DE'],        # Bidding zones to forecast\n",
+    "    \n",
+    "    # Data info\n",
+    "    'naive_model': False,   # Include naive model\n",
+    "    'time_series': True,    # Include time series models\n",
+    "    'start_date_ts': '2022-06-09',  # Start date for time series\n",
+    "    'days_back': 20,        # Days back for evaluation\n",
+    "    'training_version': 'v1',\n",
+    "    'table_pred': 'Prices',\n",
+    "    \n",
+    "    # Script info\n",
+    "    'create_plots': True,   # Create evaluation plots\n",
+    "    'teams_notification': False,  # Send Teams notifications\n",
+    "    'teams_webhook_url': None,    # Teams webhook URL\n",
+    "}\n",
+    "\n",
+    "print(\"Configuration loaded:\")\n",
+    "for key, value in config.items():\n",
+    "    print(f\"  {key}: {value}\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "f41d0491-4d7f-46bc-ae74-fc6d51b0254f",
+   "metadata": {},
+   "source": [
+    "## Initialize System"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "b6763d78-6c67-469d-98f0-a8abe4490587",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Initialize the Day-Ahead EPF system\n",
+    "print(\"Initializing Day-Ahead EPF System...\")\n",
+    "epf_system = DayAheadEPF(\n",
+    "    data_dir=\"data\",\n",
+    "    models_dir=\"models\", \n",
+    "    evaluation_dir=\"evaluation\"\n",
+    ")\n",
+    "\n",
+    "print(\"System initialized successfully!\")\n",
+    "print(f\"Available ML models: {len(epf_system.ml_model_names)}\")\n",
+    "print(f\"Available NN models: {len(epf_system.nn_model_names)}\")\n",
+    "print(f\"Data directory: {epf_system.data_dir}\")\n",
+    "print(f\"Models directory: {epf_system.models_dir}\")\n",
+    "print(f\"Evaluation directory: {epf_system.evaluation_dir}\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "a27c59a5-0a18-4e84-a006-44b809d01cda",
+   "metadata": {},
+   "source": [
+    "## Data Validation"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "data-validation",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Check if required data files exist\n",
+    "required_files = [\n",
+    "    'DE_LU_DAM_prices.csv',\n",
+    "    'actual_data.csv', \n",
+    "    'evaluation_data.csv',\n",
+    "    'historical_predictions.csv'\n",
+    "]\n",
+    "\n",
+    "print(\"Checking data files...\")\n",
+    "for filename in required_files:\n",
+    "    file_path = epf_system.data_dir / filename\n",
+    "    if file_path.exists():\n",
+    "        df = pd.read_csv(file_path, nrows=5)  # Just read first 5 rows for validation\n",
+    "        print(f\"✓ {filename} - Shape: {df.shape}, Columns: {list(df.columns)}\")\n",
+    "    else:\n",
+    "        print(f\"✗ {filename} - FILE NOT FOUND\")\n",
+    "\n",
+    "print(\"\\nData validation completed.\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "forecasting-section",
+   "metadata": {},
+   "source": [
+    "## Run Forecasting Pipeline"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "500a9207-ca4a-469b-87d3-19b5e8a007ad",
+   "metadata": {
+    "scrolled": true
+   },
+   "outputs": [],
+   "source": [
+    "# Run the complete forecasting pipeline\n",
+    "print(\"Starting forecasting pipeline...\")\n",
+    "print(\"=\" * 60)\n",
+    "\n",
+    "results = epf_system.run_forecasting(\n",
+    "    zones=config['zones'],\n",
+    "    starting_date=config['starting_date'],\n",
+    "    days_ahead=config['days_ahead'],\n",
+    "    training_version=config['training_version'],\n",
+    "    table_pred=config['table_pred'],\n",
+    "    start_date_ts=config['start_date_ts'],\n",
+    "    days_back=config['days_back'],\n",
+    "    naive_model=config['naive_model'],\n",
+    "    time_series=config['time_series'],\n",
+    "    create_plots=config['create_plots']\n",
+    ")\n",
+    "\n",
+    "print(\"\\n\" + \"=\" * 60)\n",
+    "print(\"Forecasting pipeline completed!\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "results-section",
+   "metadata": {},
+   "source": [
+    "## Results Summary"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "results-summary",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Display results summary\n",
+    "if results:\n",
+    "    print(\"Forecasting Results Summary\")\n",
+    "    print(\"=\" * 40)\n",
+    "    \n",
+    "    for zone, zone_results in results.items():\n",
+    "        print(f\"\\nZone: {zone}\")\n",
+    "        print(f\"Number of forecast periods: {len(zone_results)}\")\n",
+    "        \n",
+    "        for date_key, result in zone_results.items():\n",
+    "            if result['suggested_model']:\n",
+    "                print(f\"  Date: {date_key}\")\n",
+    "                print(f\"  Suggested model: {result['suggested_model']}\")\n",
+    "                \n",
+    "                if result['suggested_predictions'] is not None:\n",
+    "                    avg_price = result['suggested_predictions']['Prices €/MWh'].mean()\n",
+    "                    min_price = result['suggested_predictions']['Prices €/MWh'].min()\n",
+    "                    max_price = result['suggested_predictions']['Prices €/MWh'].max()\n",
+    "                    \n",
+    "                    print(f\"  Average price: {avg_price:.2f} €/MWh\")\n",
+    "                    print(f\"  Price range: {min_price:.2f} - {max_price:.2f} €/MWh\")\n",
+    "                    \n",
+    "                    # Display first few predictions\n",
+    "                    print(\"  Sample predictions:\")\n",
+    "                    print(result['suggested_predictions'].head(6).to_string(index=False))\n",
+    "else:\n",
+    "    print(\"No results available. Please check the configuration and data files.\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "53d5e9fd-c92d-4c1b-9373-7d21b4b450ae",
+   "metadata": {},
+   "source": [
+    "## Teams Notifications (Optional)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "e489c4cd-f5b3-4100-9dc8-5f151f46c699",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Send Teams notification if configured\n",
+    "if config['teams_notification'] and config['teams_webhook_url']:\n",
+    "    print(\"Sending Teams notification...\")\n",
+    "    \n",
+    "    epf_system.send_teams_notification(\n",
+    "        zones=config['zones'],\n",
+    "        days_ahead=config['days_ahead'],\n",
+    "        days_back=config['days_back'],\n",
+    "        webhook_url=config['teams_webhook_url']\n",
+    "    )\nelse:\n",
+    "    print(\"Teams notification disabled or webhook URL not provided.\")\n",
+    "    print(\"To enable Teams notifications:\")\n",
+    "    print(\"1. Set config['teams_notification'] = True\")\n",
+    "    print(\"2. Provide your Teams webhook URL in config['teams_webhook_url']\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "model-evaluation",
+   "metadata": {},
+   "source": [
+    "## Model Evaluation (Standalone)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "standalone-evaluation",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# You can also run model evaluation independently\n",
+    "from Models_Evaluation import evaluation_project\n",
+    "\n",
+    "print(\"Running standalone model evaluation...\")\n",
+    "\n",
+    "# Define evaluation parameters\n",
+    "eval_results = evaluation_project(\n",
+    "    zone=\"DE\",\n",
+    "    table_pred=\"Prices\",\n",
+    "    column_pred=\"DE_LU\",\n",
+    "    training_version=\"v1\",\n",
+    "    start_date=\"2024-02-04 00:00:00\",\n",
+    "    days_back=10,\n",
+    "    create_plots=True,\n",
+    "    data_dir=\"data\"\n",
+    ")\n",
+    "\n",
+    "if not eval_results.empty:\n",
+    "    print(\"\\nModel Evaluation Results:\")\n",
+    "    print(\"=\" * 50)\n",
+    "    print(eval_results.head(10).to_string(index=False))\n",
+    "    \n",
+    "    print(f\"\\nBest performing model: {eval_results.iloc[0, 0]}\")\n",
+    "    print(f\"MAE: {eval_results.iloc[0, 1]:.2f} €/MWh\")\n",
+    "    print(f\"RMSE: {eval_results.iloc[0, 2]:.2f} €/MWh\")\n",
+    "    print(f\"MAPE: {eval_results.iloc[0, 3]:.2f}%\")\nelse:\n",
+    "    print(\"No evaluation results available. Please check the data files.\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "data-exploration",
+   "metadata": {},
+   "source": [
+    "## Data Exploration (Optional)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "data-exploration-cell",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Explore the data files\n",
+    "import matplotlib.pyplot as plt\n",
+    "import seaborn as sns\n",
+    "\n",
+    "# Load and display sample data\n",
+    "try:\n",
+    "    # Load price data\n",
+    "    prices = pd.read_csv(\"data/DE_LU_DAM_prices.csv\")\n",
+    "    prices['Datetime'] = pd.to_datetime(prices['Datetime'])\n",
+    "    \n",
+    "    print(\"Price Data Summary:\")\n",
+    "    print(f\"Data range: {prices['Datetime'].min()} to {prices['Datetime'].max()}\")\n",
+    "    print(f\"Total records: {len(prices)}\")\n",
+    "    print(f\"Average price: {prices['DE_LU'].mean():.2f} €/MWh\")\n",
+    "    \n",
+    "    # Plot recent price trends\n",
+    "    recent_data = prices.tail(24*7)  # Last 7 days\n",
+    "    \n",
+    "    plt.figure(figsize=(15, 6))\n",
+    "    plt.plot(recent_data['Datetime'], recent_data['DE_LU'], linewidth=2)\n",
+    "    plt.title('Recent Electricity Prices (Last 7 Days)', fontsize=16)\n",
+    "    plt.xlabel('Datetime', fontsize=12)\n",
+    "    plt.ylabel('Price (€/MWh)', fontsize=12)\n",
+    "    plt.xticks(rotation=45)\n",
+    "    plt.grid(True, alpha=0.3)\n",
+    "    plt.tight_layout()\n",
+    "    plt.show()\n",
+    "    \n",
+    "    # Load fundamental data\n",
+    "    fundamentals = pd.read_csv(\"data/evaluation_data.csv\", sep=';')\n",
+    "    fundamentals['Datetime'] = pd.to_datetime(fundamentals['Datetime'])\n",
+    "    \n",
+    "    print(\"\\nFundamental Data Summary:\")\n",
+    "    print(f\"Data range: {fundamentals['Datetime'].min()} to {fundamentals['Datetime'].max()}\")\n",
+    "    print(f\"Total records: {len(fundamentals)}\")\n",
+    "    \n",
+    "    # Plot correlation matrix\n",
+    "    numeric_cols = fundamentals.select_dtypes(include=['float64', 'int64']).columns\n",
+    "    correlation_matrix = fundamentals[numeric_cols].corr()\n",
+    "    \n",
+    "    plt.figure(figsize=(12, 10))\n",
+    "    sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', center=0, \n",
+    "                square=True, fmt='.2f')\n",
+    "    plt.title('Feature Correlation Matrix', fontsize=16)\n",
+    "    plt.tight_layout()\n",
+    "    plt.show()\n",
+    "    \nexcept Exception as e:\n",
+    "    print(f\"Error exploring data: {e}\")\n",
+    "    print(\"Please ensure data files are present in the data/ directory\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "custom-analysis",
+   "metadata": {},
+   "source": [
+    "## Custom Analysis"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "custom-analysis-cell",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Custom analysis section - modify as needed\n",
+    "\n",
+    "# Example: Compare different ensemble strategies\n",
+    "if results:\n",
+    "    print(\"Custom Analysis: Ensemble Strategy Comparison\")\n",
+    "    print(\"=\" * 50)\n",
+    "    \n",
+    "    for zone, zone_results in results.items():\n",
+    "        for date_key, result in zone_results.items():\n",
+    "            forecasts_df = result['forecasts']\n",
+    "            \n",
+    "            # Check which ensemble models are available\n",
+    "            ensemble_models = [col for col in forecasts_df.columns if 'Best_' in col]\n",
+    "            \n",
+    "            if ensemble_models:\n",
+    "                print(f\"\\nEnsemble models available for {zone} on {date_key}:\")\n",
+    "                ensemble_data = forecasts_df[ensemble_models]\n",
+    "                \n",
+    "                # Calculate summary statistics\n",
+    "                print(\"\\nEnsemble Model Statistics:\")\n",
+    "                print(ensemble_data.describe().round(2))\n",
+    "                \n",
+    "                # Plot ensemble predictions\n",
+    "                if len(ensemble_models) > 1:\n",
+    "                    plt.figure(figsize=(15, 8))\n",
+    "                    for model in ensemble_models:\n",
+    "                        plt.plot(range(24), ensemble_data[model], \n",
+    "                               label=model, linewidth=2, marker='o', markersize=4)\n",
+    "                    \n",
+    "                    plt.title(f'Ensemble Model Predictions - {zone}', fontsize=16)\n",
+    "                    plt.xlabel('Hour of Day', fontsize=12)\n",
+    "                    plt.ylabel('Price (€/MWh)', fontsize=12)\n",
+    "                    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')\n",
+    "                    plt.grid(True, alpha=0.3)\n",
+    "                    plt.tight_layout()\n",
+    "                    plt.show()\n",
+    "            \n",
+    "            break  # Only analyze first result for demo\n",
+    "        break"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "export-results",
+   "metadata": {},
+   "source": [
+    "## Export Results"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "export-results-cell", 
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Export results to various formats\n",
+    "if results:\n",
+    "    print(\"Exporting results...\")\n",
+    "    \n",
+    "    for zone, zone_results in results.items():\n",
+    "        for date_key, result in zone_results.items():\n",
+    "            if result['forecasts'] is not None:\n",
+    "                # Export to CSV\n",
+    "                date_str = pd.to_datetime(date_key).strftime('%Y%m%d')\n",
+    "                csv_filename = f\"output/forecasts_{zone}_{date_str}.csv\"\n",
+    "                \n",
+    "                # Create output directory\n",
+    "                import os\n",
+    "                os.makedirs(\"output\", exist_ok=True)\n",
+    "                \n",
+    "                result['forecasts'].to_csv(csv_filename)\n",
+    "                print(f\"Forecasts exported to: {csv_filename}\")\n",
+    "                \n",
+    "                # Export suggested predictions\n",
+    "                if result['suggested_predictions'] is not None:\n",
+    "                    suggested_filename = f\"output/suggested_{zone}_{date_str}.csv\"\n",
+    "                    result['suggested_predictions'].to_csv(suggested_filename, index=False)\n",
+    "                    print(f\"Suggested predictions exported to: {suggested_filename}\")\n",
+    "    \n",
+    "    print(\"\\nResults exported successfully!\")\nelse:\n",
+    "    print(\"No results to export.\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "next-steps",
+   "metadata": {},
+   "source": [
+    "## Next Steps\n",
+    "\n",
+    "1. **Model Training**: To use this system with your own data, you'll need to train the models first\n",
+    "2. **Data Updates**: Regularly update the CSV files with new data\n",
+    "3. **Model Retraining**: Periodically retrain models with new data\n",
+    "4. **Performance Monitoring**: Monitor model performance over time\n",
+    "5. **Custom Models**: Add your own models to the ensemble\n",
+    "\n",
+    "For more information, see the README.md file and documentation."
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3 (ipykernel)",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.11.7"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}

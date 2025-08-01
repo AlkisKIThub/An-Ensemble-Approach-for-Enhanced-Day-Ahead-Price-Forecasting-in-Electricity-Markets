@@ -1,0 +1,67 @@
+# Core Data Science Libraries
+pandas>=1.5.0
+numpy>=1.21.0
+scipy>=1.9.0
+
+# Machine Learning - Core
+scikit-learn>=1.1.0
+
+# Machine Learning - Advanced (Optional but recommended)
+xgboost>=1.6.0
+lightgbm>=3.3.0
+catboost>=1.0.0
+
+# Deep Learning (Optional - for neural network models)
+# Comment out these lines if you don't need neural networks
+tensorflow>=2.10.0
+keras>=2.10.0
+
+# Time Series Analysis
+statsmodels>=0.13.0
+pmdarima>=2.0.0
+
+# Advanced Time Series (Optional)
+# Comment out if not using advanced time series models
+scalecast>=0.17.0
+tbats>=1.1.0
+ThymeBoost>=0.1.0
+
+# Data Visualization - Core
+matplotlib>=3.5.0
+seaborn>=0.11.0
+
+# Data Visualization - Advanced (Optional)
+plotly>=5.0.0
+jupyterthemes>=0.20.0
+
+# File I/O
+openpyxl>=3.0.0
+
+# Utilities
+requests>=2.28.0
+six>=1.16.0
+
+# Date/Time handling
+holidays>=0.20
+
+# System utilities (Optional)
+# Comment out if not using GUI features
+PySimpleGUI>=4.60.0
+
+# Development Environment (Optional)
+# Uncomment for development setup
+# jupyter>=1.0.0
+# notebook>=6.4.0  
+# ipykernel>=6.15.0
+
+# Advanced Visualizations (Optional)
+# Uncomment for enhanced data exploration
+# pandasgui>=0.2.0
+# pygwalker>=0.1.0
+
+# Development Tools (Optional)
+# Uncomment for development
+# black>=22.0.0
+# flake8>=4.0.0
+# mypy>=0.950
+# pytest>=7.0.0
